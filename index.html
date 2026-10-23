@@ -1,0 +1,1158 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ULCARE - AI Wet Gangrene Detection System</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome for medical and UI icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts: Inter -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        ulcare: {
+                            50: '#f0fdfa',
+                            100: '#ccfbf1',
+                            200: '#99f6e4',
+                            300: '#5eead4',
+                            400: '#2dd4bf',
+                            500: '#14b8a6', // Primary Teal
+                            600: '#0d9488',
+                            700: '#0f766e',
+                            800: '#115e59',
+                            900: '#134e4a',
+                            blue: {
+                                500: '#0284c7',
+                                600: '#0284c7',
+                                700: '#0369a1'
+                            }
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        .dragover {
+            border-color: #14b8a6 !important;
+            background-color: #f0fdfa !important;
+        }
+        html, body { margin: 0; }
+        .gradcam-legend { background: linear-gradient(90deg,#00007f,#0000ff,#00ffff,#ffff00,#ff0000,#7f0000); }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans antialiased selection:bg-teal-100 selection:text-teal-900">
+
+    <header class="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+            <!-- Brand Logo & Title -->
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <div class="w-12 h-12 rounded-xl bg-gradient-to-tr from-teal-600 via-teal-500 to-sky-500 flex items-center justify-center text-white shadow-md shadow-teal-500/20">
+                    <i class="fa-solid fa-notes-medical text-2xl"></i>
+                </div>
+                <div>
+                    <div class="flex items-center space-x-2">
+                        <span class="text-2xl font-extrabold tracking-tight text-slate-900">UL<span class="text-teal-600">CARE</span></span>
+                        <span class="bg-teal-50 text-teal-700 text-xs font-semibold px-2 py-0.5 rounded-full border border-teal-200">v2.4 Clinical System</span>
+                    </div>
+                    <p class="text-xs text-slate-500 font-medium">Diabetic Foot Ulcer & Wet Gangrene Detection Tool</p>
+                </div>
+            </div>
+
+            <!-- Navigation Links -->
+            <nav class="hidden md:flex items-center space-x-1">
+                <button onclick="switchTab('dashboard')" id="nav-dashboard" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-teal-700 bg-teal-50/80">
+                    <i class="fa-solid fa-chart-pie mr-2"></i>Dashboard
+                </button>
+                <button onclick="switchTab('analyzer')" id="nav-analyzer" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-teal-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-microscope mr-2"></i>AI Scan Tool
+                </button>
+                <button onclick="switchTab('education')" id="nav-education" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-teal-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-book-medical mr-2"></i>Edukasi & Info
+                </button>
+                <button onclick="switchTab('team')" id="nav-team" class="px-4 py-2 rounded-lg text-sm font-semibold transition-all text-slate-600 hover:text-teal-600 hover:bg-slate-50">
+                    <i class="fa-solid fa-graduation-cap mr-2"></i>TIM WISPO 3
+                </button>
+            </nav>
+
+            <!-- Header Right Action -->
+            <div class="flex items-center space-x-3">
+                <!-- Simple Settings Dropdown Language Toggle -->
+                <div class="relative inline-block text-left">
+                    <select id="lang-select" onchange="changeLanguage(this.value)" class="bg-slate-100 border border-slate-300 text-slate-700 text-xs font-bold rounded-xl px-3 py-2 focus:ring-2 focus:ring-teal-500 focus:outline-none cursor-pointer">
+                        <option value="id">🇮🇩 Indonesia</option>
+                        <option value="en">🇬🇧 English</option>
+                    </select>
+                </div>
+                <button onclick="switchTab('analyzer'); openNewAssessment();" class="hidden sm:inline-flex items-center justify-center px-4 py-2.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm shadow-sm shadow-teal-600/30 transition-all">
+                    <i class="fa-solid fa-camera mr-2"></i>Assessment Baru
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- DASHBOARD TAB -->
+        <div id="tab-content-dashboard" class="space-y-8">
+            <!-- Hero Banner with DIRECT UPLOAD AREA -->
+            <div class="bg-gradient-to-r from-teal-900 via-teal-800 to-sky-900 rounded-3xl p-6 sm:p-10 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    
+                    <!-- Left: Hero Information Text & Disclaimer Banner -->
+                    <div class="lg:col-span-6 space-y-4">
+                        <span class="bg-teal-500/30 text-teal-200 text-xs font-semibold px-3 py-1 rounded-full border border-teal-400/30 uppercase tracking-wider">AI Health Assistant</span>
+                        <h1 class="text-3xl sm:text-4xl font-extrabold tracking-tight">Early-Stage Wet Gangrene Detection</h1>
+                        <p class="text-teal-100 text-sm sm:text-base leading-relaxed">
+                            An easy-to-use self-assessment tool designed for rapid diabetic foot ulcer image screening, Wagner stage classification, and immediate next-step guidance.
+                        </p>
+                        
+                        <!-- Disclaimer Callout inside Hero -->
+                        <div class="bg-teal-950/60 border border-teal-400/30 rounded-2xl p-4 text-xs text-teal-200 flex items-start space-x-3 backdrop-blur-xs">
+                            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-lg flex-shrink-0 mt-0.5"></i>
+                            <div>
+                                <strong class="text-white block font-semibold mb-0.5">Penting (Disclaimer Medis):</strong>
+                                <span lang-key="hero-disclaimer">Alat ini berfungsi sebagai SUPPORT untuk screening dini mandiri, BUKAN pengganti diagnosis medis resmi dari dokter/tenaga medis profesional.</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right: Direct File Upload Zone inside Dashboard Hero -->
+                    <div class="lg:col-span-6">
+                        <div class="bg-white/95 text-slate-800 rounded-2xl p-6 shadow-2xl backdrop-blur-sm border border-white/20 space-y-4">
+                            <div class="flex items-center justify-between border-b border-slate-100 pb-3">
+                                <h3 class="font-extrabold text-sm text-slate-900 flex items-center">
+                                    <i class="fa-solid fa-upload text-teal-600 mr-2"></i>Upload Foto Luka untuk Scan
+                                </h3>
+                                <span class="text-[11px] font-semibold text-teal-700 bg-teal-50 px-2.5 py-0.5 rounded-full border border-teal-200">Langsung Buka Scan</span>
+                            </div>
+
+                            <!-- Interactive Dropzone -->
+                            <div id="hero-drop-zone" class="border-2 border-dashed border-teal-300 hover:border-teal-500 rounded-xl p-6 text-center bg-teal-50/40 hover:bg-teal-50 transition-all cursor-pointer relative group">
+                                <input type="file" id="hero-file-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleHeroFileSelect(event)">
+                                <div class="space-y-2">
+                                    <div class="w-12 h-12 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center mx-auto text-xl group-hover:scale-110 transition-transform">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <p class="text-sm font-bold text-slate-800">Drag & Drop atau Klik untuk Upload Foto Luka</p>
+                                    <p class="text-xs text-slate-500">Mendukung format JPG, PNG. Gambar langsung diproses.</p>
+                                </div>
+                            </div>
+
+                            <!-- Help Link directly under Hover/Upload Area -->
+                            <div class="text-center pt-1">
+                                <button type="button" onclick="switchTab('education'); scrollToGuide();" class="text-xs font-semibold text-teal-700 hover:text-teal-900 hover:underline inline-flex items-center">
+                                    <i class="fa-solid fa-circle-question mr-1.5 text-teal-600"></i>
+                                    <span>Needs help on how to upload a good photo?</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- Dashboard System Metrics Grid -->
+            <div>
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold text-slate-900 flex items-center">
+                        <i class="fa-solid fa-chart-line text-teal-600 mr-2"></i>System Performance Metrics
+                    </h2>
+                    <span class="text-xs font-medium text-slate-500">Evaluated on 1,240 Diabetic Foot Ulcer Validation Images</span>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 text-sm font-medium">Diagnostic Accuracy</span>
+                            <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                                <i class="fa-solid fa-bullseye text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span class="text-3xl font-extrabold text-slate-900">96.8%</span>
+                            <span class="ml-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">+1.4% vs baseline</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Overall precision in early-stage wet gangrene classification</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 text-sm font-medium">Sensitivity (Recall)</span>
+                            <div class="w-10 h-10 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+                                <i class="fa-solid fa-shield-heart text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span class="text-3xl font-extrabold text-slate-900">98.2%</span>
+                            <span class="ml-2 text-xs font-semibold text-sky-600 bg-sky-50 px-2 py-0.5 rounded-full">High Recall</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Minimized false negatives for critical ischemic tissue</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 text-sm font-medium">Specificity Rate</span>
+                            <div class="w-10 h-10 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+                                <i class="fa-solid fa-filter text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span class="text-3xl font-extrabold text-slate-900">95.4%</span>
+                            <span class="ml-2 text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Robust</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Accurate differentiation from benign chronic wounds</p>
+                    </div>
+
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200/80 shadow-xs hover:shadow-md transition-all">
+                        <div class="flex items-center justify-between">
+                            <span class="text-slate-500 text-sm font-medium">Avg. Inference Time</span>
+                            <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                                <i class="fa-solid fa-bolt text-lg"></i>
+                            </div>
+                        </div>
+                        <div class="mt-4 flex items-baseline">
+                            <span class="text-3xl font-extrabold text-slate-900">0.82s</span>
+                            <span class="ml-2 text-xs font-semibold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full">Real-time</span>
+                        </div>
+                        <p class="text-xs text-slate-500 mt-2">Instant convolutional neural network processing</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- FAQ Section -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+                <div class="border-b border-slate-100 pb-4">
+                    <span class="bg-teal-50 text-teal-700 text-xs font-extrabold px-3 py-1 rounded-full border border-teal-200 uppercase tracking-wider">FAQ</span>
+                    <h3 class="text-2xl font-extrabold text-slate-900 mt-2">Pertanyaan Sering Diajukan</h3>
+                    <p class="text-xs text-slate-500 mt-1">Informasi dasar seputar Wet Gangrene dan sistem skrining ULCARE.</p>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-slate-700 text-xs leading-relaxed">
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-2">
+                        <h4 class="font-bold text-sm text-slate-900 flex items-center">
+                            <i class="fa-solid fa-circle-question text-teal-600 mr-2"></i>Apa itu Wet Gangrene?
+                        </h4>
+                        <p>Wet Gangrene (gangren basah) adalah kondisi kematian jaringan yang disertai infeksi bakteri akut, pembengkakan, dan cairan nanah berbau tak sedap. Kondisi ini merupakan komplikasi serius dari luka kaki diabetik yang membutuhkan penanganan medis segera.</p>
+                    </div>
+
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-2">
+                        <h4 class="font-bold text-sm text-slate-900 flex items-center">
+                            <i class="fa-solid fa-microscope text-teal-600 mr-2"></i>Seberapa akurat analisis AI ULCARE?
+                        </h4>
+                        <p>Model kecerdasan buatan ULCARE dilatih menggunakan dataset gambar klinis luka diabetik dan mencapai akurasi hingga 96.8%. Namun, hasil dari aplikasi ini digunakan sebagai rujukan skrining awal dan bukan vonis diagnosis mutlak.</p>
+                    </div>
+
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-2">
+                        <h4 class="font-bold text-sm text-slate-900 flex items-center">
+                            <i class="fa-solid fa-user-shield text-teal-600 mr-2"></i>Apakah data foto luka saya aman?
+                        </h4>
+                        <p>Foto dikirim ke server aplikasi hanya untuk dianalisis oleh model dan tidak disimpan oleh aplikasi ini. Tetap hindari mengunggah foto yang memuat identitas pribadi.</p>
+                    </div>
+
+                    <div class="bg-slate-50 p-5 rounded-2xl border border-slate-200/80 space-y-2">
+                        <h4 class="font-bold text-sm text-slate-900 flex items-center">
+                            <i class="fa-solid fa-hospital-user text-teal-600 mr-2"></i>Apa yang harus dilakukan jika hasil analisis menunjukkan Stage 3 atau Stage 4?
+                        </h4>
+                        <p>Sangat disarankan untuk segera mengunjungi instalasi gawat darurat (IGD) atau berkonsultasi dengan dokter spesialis bedah/perawatan luka untuk tindakan debridemen atau antibiotik sistemik.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Contact Support Section -->
+            <div class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-lg relative overflow-hidden">
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                    <div class="lg:col-span-6 space-y-3">
+                        <span class="bg-teal-500/20 text-teal-300 text-xs font-bold px-3 py-1 rounded-full border border-teal-500/30">Layanan Bantuan</span>
+                        <h3 class="text-2xl font-black">Contact Support & Clinical Helpdesk</h3>
+                        <p class="text-xs text-slate-300 leading-relaxed">
+                            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.
+                        </p>
+                        <div class="pt-2 space-y-1.5 text-xs text-teal-200 font-medium">
+                            <p><i class="fa-solid fa-envelope mr-2 text-teal-400"></i>support.ulcare@brawijayasmartschool.sch.id</p>
+                            <p><i class="fa-solid fa-phone mr-2 text-teal-400"></i>+62 812-3456-7890 (Lorem Ipsum Emergency Desk)</p>
+                        </div>
+                    </div>
+                    <div class="lg:col-span-6 bg-slate-800/80 p-5 rounded-2xl border border-slate-700">
+                        <form onsubmit="handleSupportSubmit(event)" class="space-y-3">
+                            <h4 class="text-xs font-bold text-teal-300 uppercase">Kirim Pesan Dukungan (Support Form)</h4>
+                            <div>
+                                <input type="text" required placeholder="Nama Lengkap (Lorem Ipsum)" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-teal-500">
+                            </div>
+                            <div>
+                                <input type="email" required placeholder="Email Anda" class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-teal-500">
+                            </div>
+                            <div>
+                                <textarea rows="2" required placeholder="Tuliskan pertanyaan atau kendala Anda..." class="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-teal-500"></textarea>
+                            </div>
+                            <button type="submit" class="w-full py-2.5 bg-teal-600 hover:bg-teal-500 text-white font-bold text-xs rounded-xl transition-all">
+                                Kirim Pesan Bantuan
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI SCAN TOOL TAB -->
+        <div id="tab-content-analyzer" class="space-y-8 hidden">
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-sm">
+                <div class="border-b border-slate-100 pb-5 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div>
+                        <span class="bg-teal-50 text-teal-700 text-xs font-extrabold px-3 py-1 rounded-full border border-teal-200 uppercase tracking-wider">AI Detection Tool</span>
+                        <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Wound Image Assessment</h2>
+                        <p class="text-xs text-slate-500 mt-1">Upload or drag and drop a clear image of your diabetic foot wound for instant Wagner stage classification.</p>
+                    </div>
+                    <button onclick="switchTab('dashboard')" class="text-xs font-bold text-slate-600 hover:text-teal-600 bg-slate-100 px-4 py-2 rounded-xl flex items-center w-max">
+                        <i class="fa-solid fa-arrow-left mr-2"></i>Kembali ke Dashboard
+                    </button>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <!-- Left: Upload & Input Panel -->
+                    <div class="lg:col-span-5 space-y-6">
+                        <!-- User Identifier -->
+                        <div class="space-y-4 bg-slate-50 p-5 rounded-2xl border border-slate-200/80">
+                            <h3 class="text-sm font-bold text-slate-800 flex items-center">
+                                <i class="fa-solid fa-user-circle text-teal-600 mr-2"></i>Assessment Identifier (Optional)
+                            </h3>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 mb-1">Your Name / Assessment Label</label>
+                                <input type="text" id="patient-name" placeholder="e.g. My Foot Scan Assessment" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                            </div>
+                        </div>
+
+                        <!-- Drag and Drop Upload Area -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-2">Ulcer Image Upload</label>
+                            <div id="drop-zone" class="border-2 border-dashed border-slate-300 rounded-2xl p-6 text-center hover:border-teal-500 transition-all bg-slate-50/50 relative cursor-pointer group">
+                                <input type="file" id="file-input" accept="image/*" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10" onchange="handleFileSelect(event)">
+                                
+                                <div id="upload-prompt" class="space-y-3">
+                                    <div class="w-12 h-12 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center mx-auto text-xl group-hover:scale-110 transition-transform border border-teal-100">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm font-bold text-slate-800">Drag & Drop Image Here</p>
+                                        <p class="text-xs text-slate-400 mt-1">or click to browse local files (JPG, PNG)</p>
+                                    </div>
+                                </div>
+
+                                <div id="preview-container" class="hidden relative z-20">
+                                    <img id="image-preview" src="" alt="Wound Preview" class="max-h-56 mx-auto rounded-xl object-contain border border-slate-200 shadow-sm">
+                                    <button type="button" onclick="resetUpload(event)" class="mt-3 px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg transition-all border border-rose-200">
+                                        <i class="fa-solid fa-trash mr-1.5"></i>Remove Image
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Link to Education Upload Guide -->
+                            <div class="text-center mt-2">
+                                <button type="button" onclick="switchTab('education'); scrollToGuide();" class="text-xs text-teal-600 hover:text-teal-800 font-semibold hover:underline inline-flex items-center">
+                                    <i class="fa-solid fa-circle-info mr-1"></i>Needs help on how to upload a good photo?
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Analyze Action Button -->
+                        <button type="button" id="analyze-btn" onclick="runAnalysis()" class="w-full py-3.5 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-md shadow-teal-600/20 transition-all flex items-center justify-center"><i id="analyze-icon" class="fa-solid fa-microscope mr-2"></i><span id="analyze-label" data-dyn></span></button>
+                    </div>
+
+                    <!-- Right: Analysis & Findings Output -->
+                    <div class="lg:col-span-7">
+                        <div id="results-section" class="hidden space-y-6 animate-in fade-in duration-300">
+                            <!-- Wagner stage summary -->
+                            <div id="stage-card" class="p-6 rounded-2xl border bg-slate-50 border-slate-200 text-slate-900 flex flex-col sm:flex-row items-center justify-between gap-4">
+                                <div class="space-y-1 text-center sm:text-left">
+                                    <span id="stage-badge" data-dyn class="text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider bg-slate-200 text-slate-800"></span>
+                                    <h3 id="stage-title" data-dyn class="text-3xl font-black mt-2"></h3>
+                                    <p id="stage-name" data-dyn class="text-sm font-bold"></p>
+                                    <p id="stage-desc" data-dyn class="text-xs font-medium text-slate-600 leading-relaxed"></p>
+                                </div>
+                                <div class="text-center sm:text-right bg-white/80 p-4 rounded-2xl border border-slate-200/60 shadow-xs min-w-[130px]">
+                                    <span class="text-xs text-slate-500 font-bold uppercase block">AI Confidence</span>
+                                    <span id="stage-confidence" data-dyn class="text-3xl font-black"></span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-1 xl:grid-cols-2 gap-5">
+                                <section class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                                    <h4 class="text-sm font-bold text-slate-900 flex items-center"><span class="w-8 h-8 rounded-lg bg-teal-50 text-teal-700 flex items-center justify-center mr-2"><i class="fa-solid fa-arrow-trend-up"></i></span><span id="stage-reason-title" data-dyn></span></h4>
+                                    <p id="finding-reason" data-dyn class="mt-4 text-sm text-slate-600 leading-relaxed"></p>
+                                    <div class="mt-4 pt-3 border-t border-slate-100 flex items-center text-xs font-semibold text-teal-700"><i class="fa-solid fa-circle-info mr-2"></i>Area yang disorot pada Grad-CAM menjadi dasar prediksi ini.</div>
+                                </section>
+                                <section class="bg-white rounded-2xl p-5 border border-slate-200 shadow-xs">
+                                    <h4 class="text-sm font-bold text-slate-900 flex items-center mb-4"><span class="w-8 h-8 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center mr-2"><i class="fa-solid fa-chart-simple"></i></span>Probabilitas setiap stage</h4>
+                                    <div id="stage-probabilities" data-dyn class="space-y-3 text-xs"></div>
+                                </section>
+                            </div>
+
+                            <!-- Real Grad-CAM generated by the trained model (not a segmentation mask) -->
+                            <div class="bg-white p-4 rounded-2xl border border-slate-200">
+                                <div class="flex items-center justify-between gap-3 mb-3"><h4 class="text-xs font-bold text-slate-700"><i class="fa-solid fa-bullseye text-rose-500 mr-1.5"></i>Grad-CAM Attention Map</h4><span class="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Dihasilkan langsung dari model</span></div>
+                                <div class="rounded-xl overflow-hidden bg-slate-900 flex items-center justify-center">
+                                    <img id="result-img" src="" alt="Grad-CAM" class="max-h-80 w-auto max-w-full object-contain">
+                                </div>
+                                <div class="mt-3 flex items-center gap-3 text-[11px] font-semibold text-slate-500"><span>Perhatian rendah</span><div class="h-2 flex-1 rounded-full gradcam-legend"></div><span>Perhatian tinggi</span></div>
+                                <p class="mt-3 text-xs text-slate-500 leading-relaxed">Warna hangat (merah–kuning) menandai area foto yang paling memengaruhi keputusan model. Ini adalah penjelasan visual, bukan batas luka yang dipetakan.</p>
+                            </div>
+
+                            <!-- Placeholder ready for a clinician-authored suggestion -->
+                            <div class="bg-teal-50/80 border border-teal-200 rounded-2xl p-5 text-teal-900 space-y-2">
+                                <h4 class="text-sm font-bold flex items-center text-teal-800">
+                                    <i class="fa-solid fa-user-doctor mr-2"></i>Saran Klinis
+                                </h4>
+                                <p id="recommendation-text" class="text-xs leading-relaxed text-teal-800">
+                                    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Isi saran klinis dapat ditambahkan dan disesuaikan oleh tim medis pada tahap berikutnya.
+                                </p>
+                            </div>
+
+                            <!-- Action Buttons: PRINT + EMAIL OPTION -->
+                            <div class="flex flex-wrap gap-3 pt-2">
+                                <button onclick="window.print()" class="w-full sm:w-auto px-6 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center">
+                                    <i class="fa-solid fa-print mr-2"></i>Print / Download Result Summary
+                                </button>
+                                <button onclick="openEmailModal()" class="w-full sm:w-auto px-6 py-3 bg-sky-600 hover:bg-sky-700 text-white font-bold text-xs rounded-xl shadow-sm transition-all flex items-center justify-center">
+                                    <i class="fa-solid fa-paper-plane mr-2"></i>Kirim Hasil ke Email
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Initial Empty State Placeholder -->
+                        <div id="empty-state" class="border border-dashed border-slate-200 rounded-3xl p-12 text-center bg-slate-50/40 flex flex-col items-center justify-center min-h-[380px]">
+                            <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-2xl mb-4 border border-teal-100 shadow-xs">
+                                <i class="fa-solid fa-wand-magic-sparkles"></i>
+                            </div>
+                            <h3 class="text-base font-bold text-slate-800">Awaiting Image Analysis</h3>
+                            <p class="text-xs text-slate-400 max-w-sm mt-1.5 leading-relaxed">
+                                Upload a diabetic foot wound image and click "Run AI Stage Analysis" to see the predicted Wagner stage and its Grad-CAM.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- NEW EDUCATION & INFORMATION TAB -->
+        <div id="tab-content-education" class="space-y-8 hidden">
+            <!-- Header Banner -->
+            <div class="bg-gradient-to-r from-teal-900 via-teal-800 to-sky-900 rounded-3xl p-8 text-white shadow-xl">
+                <span class="bg-teal-500/30 text-teal-200 text-xs font-semibold px-3 py-1 rounded-full border border-teal-400/30 uppercase tracking-wider">Pusat Edukasi Pasien</span>
+                <h1 class="text-3xl font-extrabold mt-3">Panduan & Edukasi Wet Gangrene</h1>
+                <p class="text-teal-100 mt-2 text-sm leading-relaxed max-w-3xl">
+                    Pelajari tahapan perkembangan luka diabetik, kenali tanda bahaya infeksi berat, serta ikuti panduan pengambilan foto yang baik untuk hasil skrining AI yang optimal.
+                </p>
+            </div>
+
+            <!-- Disclaimer Box -->
+            <div class="bg-amber-50 border-2 border-amber-300 rounded-2xl p-5 text-amber-950 flex items-start space-x-4 shadow-xs">
+                <i class="fa-solid fa-triangle-exclamation text-amber-600 text-2xl flex-shrink-0 mt-1"></i>
+                <div class="space-y-1">
+                    <h3 class="font-bold text-sm uppercase text-amber-900">Disclaimer Penting Mengenai Alat Skrining ini:</h3>
+                    <p data-t="edu-disclaimer" class="text-xs leading-relaxed text-amber-900">
+                        Aplikasi AI ULCARE adalah alat bantu (<strong>SUPPORT tool</strong>) untuk skrining awal dan pemantauan mandiri. Alat ini <strong>BUKAN diagnosis resmi medis</strong>. Hasil skrining tidak menggantikan pemeriksaan fisik langsung oleh dokter, bedah vaskular, atau spesialis perawatan luka.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Wet Gangrene & Stages Explanation -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-6">
+                <div class="border-b border-slate-100 pb-4">
+                    <span class="bg-teal-50 text-teal-700 text-xs font-bold px-3 py-1 rounded-full border border-teal-200 uppercase">Pemahaman Medis</span>
+                    <h2 class="text-2xl font-extrabold text-slate-900 mt-2">Apa itu Wet Gangrene & Tahapan Perkembangannya?</h2>
+                    <p class="text-xs text-slate-500 mt-1">Wet gangrene (gangren basah) terjadi akibat penyumbatan aliran darah bersamaan dengan infeksi bakteri invasif cepat pada penderita diabetes.</p>
+                </div>
+
+                <!-- Stages 0–4 only, matching the model output supported by this app. -->
+                <div class="space-y-4">
+                    <h3 class="text-sm font-bold text-slate-800">Tahapan Klasifikasi Luka Diabetik & Gangren:</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full">Stage 0</span>
+                            <h4 class="font-bold text-slate-900 mt-2 text-sm">Kulit Utuh / Risiko Tinggi</h4>
+                            <p class="text-xs text-slate-600 mt-1">Belum ada luka terbuka, namun terdapat kelainan bentuk kaki, kapalan tebal, atau neuropati perifer.</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-sky-100 text-sky-800 rounded-full">Stage 1</span>
+                            <h4 class="font-bold text-slate-900 mt-2 text-sm">Ulserasi Dangkal (Superficial)</h4>
+                            <p class="text-xs text-slate-600 mt-1">Luka terbuka di lapisan kulit atas tanpa mengenai jaringan subkutan atau tendon.</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-amber-100 text-amber-800 rounded-full">Stage 2</span>
+                            <h4 class="font-bold text-slate-900 mt-2 text-sm">Luka Dalam (Deep Ulcer)</h4>
+                            <p class="text-xs text-slate-600 mt-1">Luka menembus otot, tendon, atau sendi, namun belum terjadi abses atau infeksi tulang.</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-orange-100 text-orange-800 rounded-full">Stage 3</span>
+                            <h4 class="font-bold text-slate-900 mt-2 text-sm">Abses / Osteomielitis</h4>
+                            <p class="text-xs text-slate-600 mt-1">Luka dalam disertai infeksi jaringan lunak, penumpukan nanah (abses), atau infeksi tulang.</p>
+                        </div>
+
+                        <div class="p-4 rounded-2xl bg-rose-50 border border-rose-200">
+                            <span class="text-xs font-bold px-2.5 py-1 bg-rose-200 text-rose-900 rounded-full">Stage 4 (Wet Gangrene Dini)</span>
+                            <h4 class="font-bold text-rose-950 mt-2 text-sm">Gangren Lokal (Jari/Bagian Depan Kaki)</h4>
+                            <p class="text-xs text-rose-800 mt-1">Jaringan mengalami kehitaman/kebiruan basah berbau, terbatas pada jari atau sebagian telapak kaki.</p>
+                        </div>
+
+                    </div>
+                </div>
+            </div>
+
+            <!-- Red Flags & Emergency Signs -->
+            <div class="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs space-y-4">
+                <div class="flex items-center space-x-3 text-rose-600 border-b border-slate-100 pb-3">
+                    <i class="fa-solid fa-triangle-exclamation text-2xl"></i>
+                    <h3 class="text-xl font-bold text-slate-900">Tanda-Tanda Bahaya (Red Flags) - Segera Cek ke Dokter</h3>
+                </div>
+                <p data-t="redflag-intro" class="text-xs text-slate-600">Apabila Anda menemukan salah satu dari tanda-tanda berikut, <strong>segera menuju IGD rumah sakit terdekat</strong>:</p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs font-medium text-slate-700">
+                    <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 flex items-start space-x-3">
+                        <i class="fa-solid fa-droplet text-rose-600 text-lg mt-0.5"></i>
+                        <span>Cairan nanah (exudate) berwarna keruh/hijau dan berbau busuk tajam secara mendadak.</span>
+                    </div>
+                    <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 flex items-start space-x-3">
+                        <i class="fa-solid fa-temperature-arrow-up text-rose-600 text-lg mt-0.5"></i>
+                        <span>Demam tinggi (>38°C), menggigil, atau kebingungan (tanda toksik sitemik/sepsis).</span>
+                    </div>
+                    <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 flex items-start space-x-3">
+                        <i class="fa-solid fa-circle-dot text-rose-600 text-lg mt-0.5"></i>
+                        <span>Perubahan warna jaringan kulit menjadi hitam, kebiruan, atau merah tua yang meluas cepat.</span>
+                    </div>
+                    <div class="p-3.5 bg-rose-50/60 rounded-xl border border-rose-100 flex items-start space-x-3">
+                        <i class="fa-solid fa-wave-square text-rose-600 text-lg mt-0.5"></i>
+                        <span>Terasa gelembung udara di bawah kulit saat ditekan (sensasi krepitasi/gas gangrene).</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Upload Photo Guide Section -->
+            <div id="photo-upload-guide" class="bg-slate-900 text-white rounded-3xl p-6 sm:p-8 shadow-md space-y-6">
+                <div class="border-b border-slate-800 pb-4">
+                    <span class="bg-teal-500/20 text-teal-300 text-xs font-bold px-3 py-1 rounded-full border border-teal-500/30 uppercase">Panduan Pengambilan Foto</span>
+                    <h3 class="text-2xl font-extrabold mt-2">Cara Upload Foto Luka yang Baik untuk Hasil Maksimal</h3>
+                    <p class="text-xs text-slate-300 mt-1">Kualitas foto yang baik sangat mempengaruhi tingkat akurasi klasifikasi AI ULCARE.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 text-xs">
+                    <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 space-y-2">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-sun"></i>
+                        </div>
+                        <h4 class="font-bold text-sm text-white">1. Pencahayaan Cukup</h4>
+                        <p class="text-slate-300">Gunakan cahaya terang alami atau lampu ruangan netral. Hindari bayangan pekat atau cahaya redup.</p>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 space-y-2">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-up-down-left-right"></i>
+                        </div>
+                        <h4 class="font-bold text-sm text-white">2. Angle Tegak Lurus</h4>
+                        <p class="text-slate-300">Posisikan kamera tepat tegak lurus (90 derajat) menghadap ke area luka. Hindari sudut miring extreme.</p>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 space-y-2">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-expand"></i>
+                        </div>
+                        <h4 class="font-bold text-sm text-white">3. Jarak Fokus Ideal</h4>
+                        <p class="text-slate-300">Ambil foto berjarak sekitar 15-20 cm dari luka. Pastikan seluruh batas tepi luka terlihat jelas.</p>
+                    </div>
+
+                    <div class="bg-slate-800/80 p-5 rounded-2xl border border-slate-700 space-y-2">
+                        <div class="w-10 h-10 rounded-xl bg-teal-500/20 text-teal-300 flex items-center justify-center text-lg font-bold">
+                            <i class="fa-solid fa-broom"></i>
+                        </div>
+                        <h4 class="font-bold text-sm text-white">4. Bersihkan Lensa & Area</h4>
+                        <p class="text-slate-300">Pastikan lensa kamera tidak buram/berminyak. Bersihkan pembalut luka terlebih dahulu jika memungkinkan.</p>
+                    </div>
+                </div>
+
+                <div class="pt-2 text-center">
+                    <button onclick="switchTab('analyzer')" class="px-6 py-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold text-xs rounded-xl transition-all inline-flex items-center">
+                        <i class="fa-solid fa-camera mr-2"></i>Mulai Upload Foto di Alat Pindai AI
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TEAM TAB -->
+        <div id="tab-content-team" class="space-y-8 hidden">
+            <!-- Team Hero Banner -->
+            <div class="bg-gradient-to-r from-teal-900 via-teal-800 to-sky-900 rounded-3xl p-8 text-white shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 w-80 h-80 bg-teal-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 max-w-2xl">
+                    <span class="bg-teal-500/30 text-teal-200 text-xs font-semibold px-3 py-1 rounded-full border border-teal-400/30 uppercase tracking-wider">Research Team Profile</span>
+                    <h1 class="text-3xl sm:text-4xl font-extrabold mt-3 tracking-tight">TIM WISPO 3</h1>
+                    <p class="text-xl font-semibold text-teal-300 mt-1">SMA BRAWIJAYA SMART SCHOOL</p>
+                    <p data-t="team-intro" class="text-teal-100 mt-3 text-sm sm:text-base leading-relaxed">
+                        Developers and researchers behind <strong>"ULCARE: Development of an AI Web Application for Early-Stage Wet Gangrene Detection in Diabetic Foot Ulcers"</strong>.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Team Members Grid -->
+            <div>
+                <h3 class="text-xl font-bold text-slate-900 mb-6 flex items-center">
+                    <i class="fa-solid fa-users text-teal-600 mr-2"></i>Project Research Members
+                </h3>
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <!-- Member 1: Cinta (Lead Researcher) -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:shadow-lg transition-all text-center flex flex-col items-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-teal-600 to-sky-500 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-teal-500/20 mb-4 group-hover:scale-105 transition-transform">
+                            SEC
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900">Sangsthita Earlene Cintanugraha</h4>
+                        <span class="text-xs font-semibold text-teal-600 bg-teal-50 px-2.5 py-0.5 rounded-full mt-1 border border-teal-200">Lead Researcher</span>
+                        <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+                            SMA Brawijaya Smart School • Lead Project Researcher & Scientific Methodology Director
+                        </p>
+                    </div>
+
+                    <!-- Member 2: Haura (Programming Engineer) -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:shadow-lg transition-all text-center flex flex-col items-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-teal-600 to-sky-500 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-teal-500/20 mb-4 group-hover:scale-105 transition-transform">
+                            HM
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900">Haura Muafa</h4>
+                        <span class="text-xs font-semibold text-sky-600 bg-sky-50 px-2.5 py-0.5 rounded-full mt-1 border border-sky-200">Programming Engineer</span>
+                        <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+                            SMA Brawijaya Smart School • Lead Developer, AI Model Integration & Web Architecture
+                        </p>
+                    </div>
+
+                    <!-- Member 3: Febri (Research Administration & Database) -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:shadow-lg transition-all text-center flex flex-col items-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-teal-600 to-sky-500 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-teal-500/20 mb-4 group-hover:scale-105 transition-transform">
+                            EFS
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900">Elmirana Febrina Sari</h4>
+                        <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full mt-1 border border-indigo-200">Research Admin & Data</span>
+                        <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+                            SMA Brawijaya Smart School • Research Administration & Clinical Dataset Management
+                        </p>
+                    </div>
+
+                    <!-- Member 4: Beby (Research Administration & Database) -->
+                    <div class="bg-white rounded-2xl p-6 border border-slate-200 shadow-xs hover:shadow-lg transition-all text-center flex flex-col items-center group">
+                        <div class="w-20 h-20 rounded-2xl bg-gradient-to-tr from-teal-600 to-sky-500 flex items-center justify-center text-white text-2xl font-bold shadow-md shadow-teal-500/20 mb-4 group-hover:scale-105 transition-transform">
+                            VBS
+                        </div>
+                        <h4 class="text-base font-bold text-slate-900">Vania Beby Setyawati</h4>
+                        <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-2.5 py-0.5 rounded-full mt-1 border border-indigo-200">Research Admin & Data</span>
+                        <p class="text-xs text-slate-500 mt-3 leading-relaxed">
+                            SMA Brawijaya Smart School • Research Administration & Clinical Dataset Management
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- School & Affiliation Details -->
+            <div class="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col md:flex-row items-center justify-between gap-6">
+                <div class="flex items-center space-x-4">
+                    <div class="w-16 h-16 rounded-2xl bg-teal-50 text-teal-600 flex items-center justify-center text-3xl font-bold border border-teal-200 shadow-inner">
+                        <i class="fa-solid fa-school"></i>
+                    </div>
+                    <div>
+                        <h4 class="text-lg font-bold text-slate-900">SMA Brawijaya Smart School</h4>
+                        <p class="text-xs text-slate-500 mt-0.5">High School Scientific Research & Innovation Program • Malang, Indonesia</p>
+                    </div>
+                </div>
+                <button onclick="switchTab('analyzer')" class="px-6 py-3 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm shadow-sm transition-all whitespace-nowrap">
+                    Test ULCARE AI Tool <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Email Modal -->
+    <div id="email-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div class="w-12 h-12 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center text-xl font-bold">
+                <i class="fa-solid fa-paper-plane"></i>
+            </div>
+            <div>
+                <h4 class="text-lg font-bold text-slate-900">Kirim Ringkasan Hasil ke Email</h4>
+                <p class="text-xs text-slate-600 mt-1 leading-relaxed">Masukkan alamat email Anda atau dokter Anda untuk menerima ringkasan hasil skrining wet gangrene ini.</p>
+            </div>
+            <form onsubmit="sendEmailReport(event)" class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Alamat Email Tujuan</label>
+                    <input type="email" id="recipient-email" required placeholder="contoh: dokter@klinik.com" class="w-full px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-sky-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end space-x-2 pt-2">
+                    <button type="button" onclick="closeEmailModal()" class="px-4 py-2 rounded-xl bg-slate-100 text-slate-600 font-semibold text-xs hover:bg-slate-200 transition-all">
+                        Batal
+                    </button>
+                    <button type="submit" class="px-5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs transition-all flex items-center">
+                        <i class="fa-solid fa-paper-plane mr-1.5"></i>Kirim Sekarang
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div id="notification-modal" class="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs hidden items-center justify-center p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4 animate-in fade-in zoom-in duration-200">
+            <div class="w-12 h-12 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center text-xl font-bold">
+                <i id="modal-icon" class="fa-solid fa-circle-info"></i>
+            </div>
+            <div>
+                <h4 id="modal-title" data-dyn class="text-lg font-bold text-slate-900">Notification</h4>
+                <p id="modal-message" data-dyn class="text-xs text-slate-600 mt-1 leading-relaxed">Message content goes here.</p>
+            </div>
+            <div class="flex justify-end pt-2">
+                <button onclick="closeModal()" class="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-xs transition-all">
+                    OK
+                </button>
+            </div>
+        </div>
+    </div>
+
+<script>
+'use strict';
+/* ULCARE front-end. Talks to app.py through the Streamlit custom-component protocol. */
+const $ = (id) => document.getElementById(id);
+const MAX_SIDE = 768, TIMEOUT_MS = 120000, SLOW_MS = 6000;
+const state = { lang: 'id', image: null, result: null, reqId: null, applied: null, busy: false, slow: false, frameH: 0, t1: null, t2: null };
+try { state.lang = localStorage.getItem('ulcare-lang') === 'en' ? 'en' : 'id'; } catch (e) { /* storage blocked */ }
+
+/* ---------- static text: [Indonesia, English]. Every visible string must be listed here ---------- */
+const PAIRS = [
+  ['Sistem Klinis v2.4', 'v2.4 Clinical System'],
+  ['Alat Deteksi Ulkus Kaki Diabetik & Gangren Basah', 'Diabetic Foot Ulcer & Wet Gangrene Detection Tool'],
+  ['Alat Pindai AI', 'AI Scan Tool'],
+  ['Edukasi & Info', 'Education & Info'],
+  ['Assessment Baru', 'New Assessment'],
+  ['Asisten Kesehatan AI', 'AI Health Assistant'],
+  ['Deteksi Dini Gangren Basah', 'Early-Stage Wet Gangrene Detection'],
+  ['Alat penilaian mandiri yang mudah digunakan untuk skrining cepat citra ulkus kaki diabetik, klasifikasi Wagner stage, dan panduan langkah selanjutnya.', 'An easy-to-use self-assessment tool designed for rapid diabetic foot ulcer image screening, Wagner stage classification, and immediate next-step guidance.'],
+  ['Penting (Disclaimer Medis):', 'Important (Medical Disclaimer):'],
+  ['Alat ini berfungsi sebagai SUPPORT untuk screening dini mandiri, BUKAN pengganti diagnosis medis resmi dari dokter/tenaga medis profesional.', 'This tool is a SUPPORT aid for early self-screening, NOT a replacement for an official medical diagnosis by a doctor or professional medical staff.'],
+  ['Upload Foto Luka untuk Scan', 'Upload Wound Photo to Scan'],
+  ['Langsung Buka Scan', 'Opens Scan Directly'],
+  ['Drag & Drop atau Klik untuk Upload Foto Luka', 'Drag & Drop or Click to Upload a Wound Photo'],
+  ['Mendukung format JPG, PNG. Gambar langsung diproses.', 'Supports JPG and PNG. The image is processed immediately.'],
+  ['Butuh bantuan cara mengunggah foto yang baik?', 'Needs help on how to upload a good photo?'],
+  ['Metrik Performa Sistem', 'System Performance Metrics'],
+  ['Dievaluasi pada 1.240 Gambar Validasi Ulkus Kaki Diabetik', 'Evaluated on 1,240 Diabetic Foot Ulcer Validation Images'],
+  ['Akurasi Diagnostik', 'Diagnostic Accuracy'],
+  ['+1,4% vs baseline', '+1.4% vs baseline'],
+  ['Presisi keseluruhan dalam klasifikasi gangren basah stadium awal', 'Overall precision in early-stage wet gangrene classification'],
+  ['Sensitivitas (Recall)', 'Sensitivity (Recall)'],
+  ['Recall Tinggi', 'High Recall'],
+  ['Meminimalkan negatif palsu pada jaringan iskemik kritis', 'Minimized false negatives for critical ischemic tissue'],
+  ['Tingkat Spesifisitas', 'Specificity Rate'],
+  ['Tangguh', 'Robust'],
+  ['Pembedaan yang akurat dari luka kronis jinak', 'Accurate differentiation from benign chronic wounds'],
+  ['Rata-rata Waktu Inferensi', 'Avg. Inference Time'],
+  ['Pemrosesan jaringan saraf konvolusional secara instan', 'Instant convolutional neural network processing'],
+  ['Pertanyaan Sering Diajukan', 'Frequently Asked Questions'],
+  ['Informasi dasar seputar Wet Gangrene dan sistem skrining ULCARE.', 'Basic information about Wet Gangrene and the ULCARE screening system.'],
+  ['Apa itu Wet Gangrene?', 'What is Wet Gangrene?'],
+  ['Wet Gangrene (gangren basah) adalah kondisi kematian jaringan yang disertai infeksi bakteri akut, pembengkakan, dan cairan nanah berbau tak sedap. Kondisi ini merupakan komplikasi serius dari luka kaki diabetik yang membutuhkan penanganan medis segera.', 'Wet gangrene is tissue death accompanied by acute bacterial infection, swelling, and foul-smelling pus. It is a serious complication of diabetic foot wounds that needs prompt medical care.'],
+  ['Seberapa akurat analisis AI ULCARE?', 'How accurate is the ULCARE AI analysis?'],
+  ['Model kecerdasan buatan ULCARE dilatih menggunakan dataset gambar klinis luka diabetik dan mencapai akurasi hingga 96.8%. Namun, hasil dari aplikasi ini digunakan sebagai rujukan skrining awal dan bukan vonis diagnosis mutlak.', 'The ULCARE AI model was trained on a clinical image dataset of diabetic wounds and reaches up to 96.8% accuracy. However, the results of this application are an early-screening reference, not an absolute diagnosis.'],
+  ['Apakah data foto luka saya aman?', 'Is my wound photo data safe?'],
+  ['Foto dikirim ke server aplikasi hanya untuk dianalisis oleh model dan tidak disimpan oleh aplikasi ini. Tetap hindari mengunggah foto yang memuat identitas pribadi.', 'The photo is sent to the application server only to be analyzed by the model and is not stored by this application. Still, avoid uploading photos that show personal identity.'],
+  ['Apa yang harus dilakukan jika hasil analisis menunjukkan Stage 3 atau Stage 4?', 'What should I do if the analysis shows Stage 3 or Stage 4?'],
+  ['Sangat disarankan untuk segera mengunjungi instalasi gawat darurat (IGD) atau berkonsultasi dengan dokter spesialis bedah/perawatan luka untuk tindakan debridemen atau antibiotik sistemik.', 'You are strongly advised to visit an emergency room immediately or consult a surgeon/wound care specialist for debridement or systemic antibiotics.'],
+  ['Layanan Bantuan', 'Help Center'],
+  ['Kontak Dukungan & Helpdesk Klinis', 'Contact Support & Clinical Helpdesk'],
+  ['Kirim Pesan Dukungan (Support Form)', 'Send a Support Message'],
+  ['Kirim Pesan Bantuan', 'Send Help Message'],
+  ['Alat Deteksi AI', 'AI Detection Tool'],
+  ['Penilaian Citra Luka', 'Wound Image Assessment'],
+  ['Unggah atau seret foto luka kaki diabetik yang jelas untuk klasifikasi Wagner stage secara instan.', 'Upload or drag and drop a clear image of your diabetic foot wound for instant Wagner stage classification.'],
+  ['Kembali ke Dashboard', 'Back to Dashboard'],
+  ['Identitas Penilaian (Opsional)', 'Assessment Identifier (Optional)'],
+  ['Nama Anda / Label Penilaian', 'Your Name / Assessment Label'],
+  ['Unggah Foto Ulkus', 'Ulcer Image Upload'],
+  ['Seret & Lepas Gambar di Sini', 'Drag & Drop Image Here'],
+  ['atau klik untuk memilih berkas (JPG, PNG)', 'or click to browse local files (JPG, PNG)'],
+  ['Hapus Gambar', 'Remove Image'],
+  ['Keyakinan AI', 'AI Confidence'],
+  ['Area yang disorot pada Grad-CAM menjadi dasar prediksi ini.', 'The areas highlighted in Grad-CAM are the basis of this prediction.'],
+  ['Probabilitas setiap stage', 'Probability of each stage'],
+  ['Peta Perhatian Grad-CAM', 'Grad-CAM Attention Map'],
+  ['Dihasilkan langsung dari model', 'Generated directly by the model'],
+  ['Perhatian rendah', 'Low attention'],
+  ['Perhatian tinggi', 'High attention'],
+  ['Warna hangat (merah–kuning) menandai area foto yang paling memengaruhi keputusan model. Ini adalah penjelasan visual, bukan batas luka yang dipetakan.', 'Warm colors (red–yellow) mark the parts of the photo that most influenced the model’s decision. This is a visual explanation, not a mapped wound boundary.'],
+  ['Saran Klinis', 'Clinical Advice'],
+  ['Lorem ipsum dolor sit amet, consectetur adipiscing elit. Isi saran klinis dapat ditambahkan dan disesuaikan oleh tim medis pada tahap berikutnya.', 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. The clinical advice can be added and adjusted by the medical team at a later stage.'],
+  ['Cetak / Unduh Ringkasan Hasil', 'Print / Download Result Summary'],
+  ['Kirim Hasil ke Email', 'Send Results by Email'],
+  ['Menunggu Analisis Gambar', 'Awaiting Image Analysis'],
+  ['Unggah foto luka kaki diabetik lalu klik "Jalankan Analisis Stage AI" untuk melihat prediksi Wagner stage beserta Grad-CAM-nya.', 'Upload a diabetic foot wound image and click "Run AI Stage Analysis" to see the predicted Wagner stage and its Grad-CAM.'],
+  ['Pusat Edukasi Pasien', 'Patient Education Center'],
+  ['Panduan & Edukasi Wet Gangrene', 'Wet Gangrene Guide & Education'],
+  ['Pelajari tahapan perkembangan luka diabetik, kenali tanda bahaya infeksi berat, serta ikuti panduan pengambilan foto yang baik untuk hasil skrining AI yang optimal.', 'Learn how diabetic wounds progress, recognize the warning signs of severe infection, and follow the photo guide for the best AI screening results.'],
+  ['Disclaimer Penting Mengenai Alat Skrining ini:', 'Important Disclaimer About This Screening Tool:'],
+  ['Pemahaman Medis', 'Medical Understanding'],
+  ['Apa itu Wet Gangrene & Tahapan Perkembangannya?', 'What Is Wet Gangrene & How Does It Progress?'],
+  ['Wet gangrene (gangren basah) terjadi akibat penyumbatan aliran darah bersamaan dengan infeksi bakteri invasif cepat pada penderita diabetes.', 'Wet gangrene occurs when blood flow is blocked together with a rapidly invasive bacterial infection in people with diabetes.'],
+  ['Tahapan Klasifikasi Luka Diabetik & Gangren:', 'Diabetic Wound & Gangrene Classification Stages:'],
+  ['Kulit Utuh / Risiko Tinggi', 'Intact Skin / High Risk'],
+  ['Belum ada luka terbuka, namun terdapat kelainan bentuk kaki, kapalan tebal, atau neuropati perifer.', 'No open wound yet, but there is foot deformity, thick calluses, or peripheral neuropathy.'],
+  ['Ulserasi Dangkal (Superficial)', 'Superficial Ulcer'],
+  ['Luka terbuka di lapisan kulit atas tanpa mengenai jaringan subkutan atau tendon.', 'An open wound in the upper skin layer without involving subcutaneous tissue or tendon.'],
+  ['Luka Dalam (Deep Ulcer)', 'Deep Ulcer'],
+  ['Luka menembus otot, tendon, atau sendi, namun belum terjadi abses atau infeksi tulang.', 'The wound reaches muscle, tendon, or joint, but there is no abscess or bone infection yet.'],
+  ['Abses / Osteomielitis', 'Abscess / Osteomyelitis'],
+  ['Luka dalam disertai infeksi jaringan lunak, penumpukan nanah (abses), atau infeksi tulang.', 'A deep wound with soft-tissue infection, pus collection (abscess), or bone infection.'],
+  ['Stage 4 (Wet Gangrene Dini)', 'Stage 4 (Early Wet Gangrene)'],
+  ['Gangren Lokal (Jari/Bagian Depan Kaki)', 'Localized Gangrene (Toe/Forefoot)'],
+  ['Jaringan mengalami kehitaman/kebiruan basah berbau, terbatas pada jari atau sebagian telapak kaki.', 'Tissue turns moist, foul-smelling black/blue, limited to the toes or part of the forefoot.'],
+  ['Tanda-Tanda Bahaya (Red Flags) - Segera Cek ke Dokter', 'Warning Signs (Red Flags) - See a Doctor Immediately'],
+  ['Cairan nanah (exudate) berwarna keruh/hijau dan berbau busuk tajam secara mendadak.', 'Cloudy/green pus (exudate) with a sudden, sharp foul smell.'],
+  ['Demam tinggi (>38°C), menggigil, atau kebingungan (tanda toksik sitemik/sepsis).', 'High fever (>38°C), chills, or confusion (signs of systemic toxicity/sepsis).'],
+  ['Perubahan warna jaringan kulit menjadi hitam, kebiruan, atau merah tua yang meluas cepat.', 'Skin tissue turning black, bluish, or dark red and spreading quickly.'],
+  ['Terasa gelembung udara di bawah kulit saat ditekan (sensasi krepitasi/gas gangrene).', 'A feeling of air bubbles under the skin when pressed (crepitus/gas gangrene).'],
+  ['Panduan Pengambilan Foto', 'Photo Guide'],
+  ['Cara Upload Foto Luka yang Baik untuk Hasil Maksimal', 'How to Upload a Good Wound Photo for the Best Results'],
+  ['Kualitas foto yang baik sangat mempengaruhi tingkat akurasi klasifikasi AI ULCARE.', 'Good photo quality strongly affects the classification accuracy of ULCARE AI.'],
+  ['1. Pencahayaan Cukup', '1. Adequate Lighting'],
+  ['Gunakan cahaya terang alami atau lampu ruangan netral. Hindari bayangan pekat atau cahaya redup.', 'Use bright natural light or neutral room lighting. Avoid dark shadows or dim light.'],
+  ['2. Angle Tegak Lurus', '2. Straight-On Angle'],
+  ['Posisikan kamera tepat tegak lurus (90 derajat) menghadap ke area luka. Hindari sudut miring extreme.', 'Hold the camera exactly perpendicular (90 degrees) to the wound. Avoid extreme tilted angles.'],
+  ['3. Jarak Fokus Ideal', '3. Ideal Focus Distance'],
+  ['Ambil foto berjarak sekitar 15-20 cm dari luka. Pastikan seluruh batas tepi luka terlihat jelas.', 'Take the photo about 15–20 cm from the wound. Make sure the whole wound edge is clearly visible.'],
+  ['4. Bersihkan Lensa & Area', '4. Clean the Lens & Area'],
+  ['Pastikan lensa kamera tidak buram/berminyak. Bersihkan pembalut luka terlebih dahulu jika memungkinkan.', 'Make sure the camera lens is not blurry or greasy. Remove the wound dressing first if possible.'],
+  ['Mulai Upload Foto di Alat Pindai AI', 'Start Uploading a Photo in the AI Scan Tool'],
+  ['Profil Tim Peneliti', 'Research Team Profile'],
+  ['Anggota Peneliti Proyek', 'Project Research Members'],
+  ['Peneliti Utama', 'Lead Researcher'],
+  ['SMA Brawijaya Smart School • Peneliti Utama Proyek & Direktur Metodologi Ilmiah', 'SMA Brawijaya Smart School • Lead Project Researcher & Scientific Methodology Director'],
+  ['Insinyur Pemrograman', 'Programming Engineer'],
+  ['SMA Brawijaya Smart School • Pengembang Utama, Integrasi Model AI & Arsitektur Web', 'SMA Brawijaya Smart School • Lead Developer, AI Model Integration & Web Architecture'],
+  ['Admin Riset & Data', 'Research Admin & Data'],
+  ['SMA Brawijaya Smart School • Administrasi Riset & Pengelolaan Dataset Klinis', 'SMA Brawijaya Smart School • Research Administration & Clinical Dataset Management'],
+  ['Program Riset & Inovasi Ilmiah SMA • Malang, Indonesia', 'High School Scientific Research & Innovation Program • Malang, Indonesia'],
+  ['Coba Alat AI ULCARE', 'Test ULCARE AI Tool'],
+  ['Kirim Ringkasan Hasil ke Email', 'Send Results Summary by Email'],
+  ['Masukkan alamat email Anda atau dokter Anda untuk menerima ringkasan hasil skrining wet gangrene ini.', 'Enter your email address or your doctor’s to receive a summary of this wet gangrene screening result.'],
+  ['Alamat Email Tujuan', 'Recipient Email Address'],
+  ['Batal', 'Cancel'],
+  ['Kirim Sekarang', 'Send Now'],
+  ['Nama Lengkap (Lorem Ipsum)', 'Full Name (Lorem Ipsum)'],
+  ['Email Anda', 'Your Email'],
+  ['Tuliskan pertanyaan atau kendala Anda...', 'Write your question or problem...'],
+  ['mis. Scan Kaki Saya', 'e.g. My Foot Scan Assessment'],
+  ['Foto Luka', 'Wound Preview'],
+  ['contoh: dokter@klinik.com', 'e.g. doctor@clinic.com'],
+];
+/* proper nouns, brand, contact data and strings identical in both languages */
+const IGNORE = new Set(['html', 'UL', 'CARE', 'TIM WISPO 3', 'Dashboard', '🇮🇩 Indonesia', '🇬🇧 English', 'FAQ', 'Real-time', 'OK', 'Grad-CAM',
+  'Stage 0', 'Stage 1', 'Stage 2', 'Stage 3', 'SEC', 'HM', 'EFS', 'VBS', 'Sangsthita Earlene Cintanugraha', 'Haura Muafa', 'Elmirana Febrina Sari', 'Vania Beby Setyawati',
+  'SMA BRAWIJAYA SMART SCHOOL', 'SMA Brawijaya Smart School', 'support.ulcare@brawijayasmartschool.sch.id', '+62 812-3456-7890 (Lorem Ipsum Emergency Desk)',
+  'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris.']);
+
+/* mixed-markup paragraphs: [Indonesia, English] as HTML */
+const HT = {
+  'edu-disclaimer': ['Aplikasi AI ULCARE adalah alat bantu (<strong>SUPPORT tool</strong>) untuk skrining awal dan pemantauan mandiri. Alat ini <strong>BUKAN diagnosis resmi medis</strong>. Hasil skrining tidak menggantikan pemeriksaan fisik langsung oleh dokter, bedah vaskular, atau spesialis perawatan luka.',
+    'The ULCARE AI application is an aid (<strong>SUPPORT tool</strong>) for early screening and self-monitoring. It is <strong>NOT an official medical diagnosis</strong>. Screening results do not replace a direct physical examination by a doctor, vascular surgeon, or wound care specialist.'],
+  'team-intro': ['Pengembang dan peneliti di balik <strong>“ULCARE: Pengembangan Aplikasi Web AI untuk Deteksi Dini Gangren Basah pada Ulkus Kaki Diabetik”</strong>.',
+    'Developers and researchers behind <strong>“ULCARE: Development of an AI Web Application for Early-Stage Wet Gangrene Detection in Diabetic Foot Ulcers”</strong>.'],
+  'redflag-intro': ['Apabila Anda menemukan salah satu dari tanda-tanda berikut, <strong>segera menuju IGD rumah sakit terdekat</strong>:',
+    'If you notice any of the following signs, <strong>go to the nearest hospital emergency room immediately</strong>:'],
+};
+
+/* ---------- dynamic text ---------- */
+const D = {
+  id: {
+    analyze: 'Jalankan Analisis Stage AI', busy: 'Menganalisis model & Grad-CAM…', busySlow: 'Memuat model (pertama kali lebih lama)…',
+    reasonTitle: (n) => `Mengapa diprediksi Stage ${n}?`,
+    stageDesc: (n, name) => `Model memprediksi Stage ${n} (${name}) berdasarkan area visual yang paling berkontribusi pada keputusan.`,
+    notifTitle: 'Notifikasi', needImageT: 'Gambar Diperlukan', needImage: 'Unggah foto luka terlebih dahulu sebelum menjalankan analisis AI.',
+    badImageT: 'Gambar Tidak Valid', badImage: 'Berkas tidak dapat dibaca. Gunakan foto JPG atau PNG.',
+    removedT: 'Gambar Dihapus', removed: 'Gambar telah dihapus. Silakan pilih gambar baru.',
+    failedT: 'Analisis Gagal', timeoutT: 'Tidak Ada Respons', timeout: 'Server tidak merespons dalam 2 menit. Periksa terminal Streamlit lalu coba lagi.',
+    emailT: 'Email Terkirim', email: (e) => `Laporan hasil analisis wet gangrene telah berhasil dikirimkan ke ${e}.`,
+    supportT: 'Pesan Terkirim', support: 'Terima kasih! Pesan bantuan Anda telah terkirim. Tim support kami akan menghubungi Anda segera.',
+  },
+  en: {
+    analyze: 'Run AI Stage Analysis', busy: 'Analyzing model & Grad-CAM…', busySlow: 'Loading model (first run takes longer)…',
+    reasonTitle: (n) => `Why was Stage ${n} predicted?`,
+    stageDesc: (n, name) => `The model predicts Stage ${n} (${name}) based on the visual areas that contributed most to the decision.`,
+    notifTitle: 'Notification', needImageT: 'Image Required', needImage: 'Please upload a wound photo before running the AI analysis.',
+    badImageT: 'Invalid Image', badImage: 'The file could not be read. Use a JPG or PNG photo.',
+    removedT: 'Image Removed', removed: 'The image has been removed. You can now select a new one.',
+    failedT: 'Analysis Failed', timeoutT: 'No Response', timeout: 'The server did not respond within 2 minutes. Check the Streamlit terminal and try again.',
+    emailT: 'Email Sent', email: (e) => `The wet gangrene analysis report has been sent to ${e}.`,
+    supportT: 'Message Sent', support: 'Thank you! Your help message has been sent. Our support team will contact you shortly.',
+  },
+};
+const STAGES = [
+  { hex: '#10b981', card: 'bg-emerald-50/80 border-emerald-200 text-emerald-900', badge: 'bg-emerald-200 text-emerald-800', pct: 'text-emerald-600',
+    name: ['Kulit Utuh / Risiko Tinggi', 'Intact Skin / High Risk'],
+    reason: ['Model terutama memperhatikan area tanpa ulkus terbuka yang dominan, sehingga pola visualnya paling sesuai dengan Stage 0.', 'The model mainly attends to areas without a dominant open ulcer, so the visual pattern best matches Stage 0.'] },
+  { hex: '#0ea5e9', card: 'bg-sky-50/80 border-sky-200 text-sky-900', badge: 'bg-sky-200 text-sky-800', pct: 'text-sky-600',
+    name: ['Ulserasi Dangkal (Superficial)', 'Superficial Ulcer'],
+    reason: ['Model memberi perhatian terbesar pada perubahan permukaan luka yang konsisten dengan ulkus superfisial Stage 1.', 'The model gives the most attention to changes in the wound surface that are consistent with a Stage 1 superficial ulcer.'] },
+  { hex: '#f59e0b', card: 'bg-amber-50/80 border-amber-200 text-amber-900', badge: 'bg-amber-200 text-amber-800', pct: 'text-amber-600',
+    name: ['Luka Dalam (Deep Ulcer)', 'Deep Ulcer'],
+    reason: ['Area Grad-CAM terkonsentrasi pada dasar dan tepi luka yang mendukung keterlibatan jaringan lebih dalam, sesuai Stage 2.', 'The Grad-CAM area concentrates on the wound base and edges, supporting deeper tissue involvement consistent with Stage 2.'] },
+  { hex: '#f97316', card: 'bg-orange-50/80 border-orange-200 text-orange-900', badge: 'bg-orange-200 text-orange-800', pct: 'text-orange-600',
+    name: ['Abses / Osteomielitis', 'Abscess / Osteomyelitis'],
+    reason: ['Pola perhatian pada eksudat, perubahan warna, dan jaringan sekitar luka paling konsisten dengan infeksi dalam pada Stage 3.', 'The attention pattern on exudate, discoloration, and the surrounding tissue is most consistent with a deep infection at Stage 3.'] },
+  { hex: '#f43f5e', card: 'bg-rose-50/80 border-rose-200 text-rose-900', badge: 'bg-rose-200 text-rose-800', pct: 'text-rose-600',
+    name: ['Gangren Lokal (Jari/Bagian Depan Kaki)', 'Localized Gangrene (Toe/Forefoot)'],
+    reason: ['Area dengan perubahan warna dan kondisi jaringan paling kuat memengaruhi prediksi gangren lokal pada Stage 4.', 'Areas with the strongest discoloration and tissue changes influence the prediction of localized gangrene at Stage 4 the most.'] },
+];
+const li = () => (state.lang === 'en' ? 1 : 0);
+const t = (key, ...args) => { const v = D[state.lang][key]; return typeof v === 'function' ? v(...args) : v; };
+
+/* ---------- language ---------- */
+const BY_TEXT = new Map();
+PAIRS.forEach((p) => { BY_TEXT.set(p[0], p); BY_TEXT.set(p[1], p); });
+const norm = (x) => x.replace(/\s+/g, ' ').trim();
+const textNodes = [], attrNodes = [], missing = [];
+
+function indexDom() {
+  const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+  for (let n; (n = walker.nextNode());) {
+    const el = n.parentElement, k = norm(n.nodeValue);
+    if (!k || !el || el.closest('script,style,[data-t],[data-dyn]')) continue;
+    const pair = BY_TEXT.get(k);
+    if (pair) textNodes.push({ n, pair, lead: n.nodeValue.match(/^\s*/)[0], trail: n.nodeValue.match(/\s*$/)[0] });
+    else if (/[A-Za-z]{2}/.test(k) && !IGNORE.has(k)) missing.push(k);
+  }
+  document.querySelectorAll('[placeholder],[alt]').forEach((el) => ['placeholder', 'alt'].forEach((a) => {
+    const v = el.getAttribute(a), p = v && BY_TEXT.get(v);
+    if (p) attrNodes.push({ el, a, p });
+  }));
+  if (missing.length) console.warn('ULCARE i18n: untranslated text', missing);
+}
+
+function applyLang() {
+  const i = li();
+  textNodes.forEach(({ n, pair, lead, trail }) => { n.nodeValue = lead + pair[i] + trail; });
+  attrNodes.forEach(({ el, a, p }) => el.setAttribute(a, p[i]));
+  document.querySelectorAll('[data-t]').forEach((el) => { el.innerHTML = HT[el.dataset.t][i]; });
+  document.documentElement.lang = state.lang;
+  $('lang-select').value = state.lang;
+  setBusy(state.busy);
+  renderResult();
+}
+
+function changeLanguage(lang) {
+  state.lang = lang === 'en' ? 'en' : 'id';
+  try { localStorage.setItem('ulcare-lang', state.lang); } catch (e) { /* ignore */ }
+  applyLang();
+}
+
+/* ---------- modal ---------- */
+function notify(title, message, icon) {
+  $('modal-title').textContent = title;
+  $('modal-message').textContent = message;
+  $('modal-icon').className = icon || 'fa-solid fa-circle-info';
+  $('notification-modal').classList.remove('hidden');
+  $('notification-modal').classList.add('flex');
+}
+function closeModal() { $('notification-modal').classList.add('hidden'); $('notification-modal').classList.remove('flex'); }
+const WARN = 'fa-solid fa-triangle-exclamation';
+
+/* ---------- navigation ---------- */
+function switchTab(tab) {
+  ['dashboard', 'analyzer', 'education', 'team'].forEach((name) => {
+    const on = name === tab;
+    $(`tab-content-${name}`).classList.toggle('hidden', !on);
+    $(`nav-${name}`).className = 'px-4 py-2 rounded-lg text-sm font-semibold transition-all ' + (on ? 'text-teal-700 bg-teal-50/80' : 'text-slate-600 hover:text-teal-600 hover:bg-slate-50');
+  });
+  window.scrollTo(0, 0);
+}
+function scrollToGuide() {
+  setTimeout(() => { const g = $('photo-upload-guide'); if (g) window.scrollTo({ top: g.getBoundingClientRect().top + window.scrollY - 100, behavior: 'smooth' }); }, 60);
+}
+function openNewAssessment() { resetUpload(null); switchTab('analyzer'); }
+
+/* ---------- image handling ---------- */
+function readImage(file) {
+  return new Promise((resolve, reject) => {
+    if (!file || !/^image\//.test(file.type)) return reject(new Error('not an image'));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error('read failed'));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error('decode failed'));
+      img.onload = () => {              // shrink big phone photos: faster upload, faster Grad-CAM
+        const scale = Math.min(1, MAX_SIDE / Math.max(img.naturalWidth, img.naturalHeight));
+        const canvas = document.createElement('canvas');
+        canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+        canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL('image/jpeg', 0.92));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+function showImage(src) {
+  cancelRequest();
+  state.image = src; state.result = null;
+  $('image-preview').src = src;
+  $('upload-prompt').classList.add('hidden');
+  $('preview-container').classList.remove('hidden');
+  $('results-section').classList.add('hidden');
+  $('empty-state').classList.remove('hidden');
+}
+async function takeFile(file, analyzeNow) {
+  try {
+    showImage(await readImage(file));
+    if (analyzeNow) { switchTab('analyzer'); runAnalysis(); }
+  } catch (e) { notify(t('badImageT'), t('badImage'), WARN); }
+}
+function handleHeroFileSelect(ev) { const f = ev.target.files[0]; ev.target.value = ''; if (f) takeFile(f, true); }
+function handleFileSelect(ev) { const f = ev.target.files[0]; ev.target.value = ''; if (f) takeFile(f, false); }
+function resetUpload(ev) {
+  if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+  cancelRequest();
+  state.image = null; state.result = null;
+  $('image-preview').removeAttribute('src');
+  $('preview-container').classList.add('hidden');
+  $('upload-prompt').classList.remove('hidden');
+  $('results-section').classList.add('hidden');
+  $('empty-state').classList.remove('hidden');
+  if (ev) notify(t('removedT'), t('removed'), 'fa-solid fa-trash-can');
+}
+
+/* ---------- analysis request ---------- */
+function setBusy(on) {
+  state.busy = on;
+  const btn = $('analyze-btn');
+  btn.disabled = on; btn.classList.toggle('opacity-70', on);
+  $('analyze-icon').className = (on ? 'fa-solid fa-spinner fa-spin' : 'fa-solid fa-microscope') + ' mr-2';
+  $('analyze-label').textContent = on ? t(state.slow ? 'busySlow' : 'busy') : t('analyze');
+}
+function cancelRequest() {
+  clearTimeout(state.t1); clearTimeout(state.t2);
+  state.reqId = null; state.slow = false;
+  if (state.busy) setBusy(false);
+}
+function runAnalysis() {
+  if (state.busy) return;
+  if (!state.image) { notify(t('needImageT'), t('needImage'), WARN); return; }
+  state.reqId = Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  state.slow = false; setBusy(true);
+  state.t1 = setTimeout(() => { state.slow = true; setBusy(true); }, SLOW_MS);
+  state.t2 = setTimeout(() => { cancelRequest(); notify(t('timeoutT'), t('timeout'), WARN); }, TIMEOUT_MS);
+  send('streamlit:setComponentValue', { value: { action: 'predict', id: state.reqId, image: state.image }, dataType: 'json' });
+}
+
+/* ---------- result: stage + confidence + probability chart all come from ONE array ---------- */
+function renderResult() {
+  const r = state.result;
+  if (!r) return;
+  const i = li(), s = r.stage, S = STAGES[s], conf = r.probabilities[s];
+  $('stage-card').className = `p-6 rounded-2xl border ${S.card} flex flex-col sm:flex-row items-center justify-between gap-4`;
+  $('stage-badge').className = `text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wider ${S.badge}`;
+  $('stage-badge').textContent = `Wagner Stage ${s}`;
+  $('stage-title').textContent = `Stage ${s}`;
+  $('stage-name').textContent = S.name[i];
+  $('stage-desc').textContent = t('stageDesc', s, S.name[i]);
+  $('stage-confidence').className = `text-3xl font-black ${S.pct}`;
+  $('stage-confidence').textContent = `${conf.toFixed(1)}%`;
+  $('stage-reason-title').textContent = t('reasonTitle', s);
+  $('finding-reason').textContent = S.reason[i];
+  $('stage-probabilities').innerHTML = r.probabilities.map((v, k) => {
+    const top = k === s;
+    return `<div><div class="flex justify-between mb-1"><span class="font-semibold ${top ? 'text-slate-900' : 'text-slate-600'}">Stage ${k}</span><span class="font-bold ${top ? STAGES[k].pct : 'text-slate-700'}">${v.toFixed(1)}%</span></div>` +
+      `<div class="h-2 rounded-full bg-slate-100 overflow-hidden"><div class="h-full rounded-full" style="width:${Math.max(0, Math.min(100, v))}%;background:${STAGES[k].hex};opacity:${top ? 1 : 0.5}"></div></div></div>`;
+  }).join('');
+  $('result-img').src = r.gradcam;
+  $('empty-state').classList.add('hidden');
+  $('results-section').classList.remove('hidden');
+}
+function revealResults() {      // scroll only when the result is off-screen, and never "far"
+  const top = $('results-section').getBoundingClientRect().top;
+  if (top < 0 || top > window.innerHeight * 0.6) window.scrollTo({ top: window.scrollY + top - 100, behavior: 'smooth' });
+}
+
+/* ---------- misc actions ---------- */
+function openEmailModal() { $('email-modal').classList.remove('hidden'); $('email-modal').classList.add('flex'); }
+function closeEmailModal() { $('email-modal').classList.add('hidden'); $('email-modal').classList.remove('flex'); }
+function sendEmailReport(e) {
+  e.preventDefault();
+  const addr = $('recipient-email').value;
+  closeEmailModal();
+  notify(t('emailT'), t('email', addr), 'fa-solid fa-paper-plane');
+}
+function handleSupportSubmit(e) {
+  e.preventDefault();
+  notify(t('supportT'), t('support'), 'fa-solid fa-headset');
+  e.target.reset();
+}
+
+/* ---------- Streamlit component protocol ---------- */
+function send(type, data) { window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, data || {}), '*'); }
+function resizeFrame() {   // fill the visible viewport; the page scrolls INSIDE the frame (no giant frame, no white gap)
+  let h = 0;
+  try { h = Math.round(window.parent.innerHeight); } catch (e) { /* cross-origin parent */ }
+  h = Math.max(520, h || Math.round(screen.availHeight * 0.85));
+  if (h !== state.frameH) { state.frameH = h; send('streamlit:setFrameHeight', { height: h }); }
+}
+window.addEventListener('message', (ev) => {
+  const d = ev.data;
+  if (!d || d.type !== 'streamlit:render') return;
+  const r = d.args && d.args.result;
+  if (!r || !r.id || r.id !== state.reqId || r.id === state.applied) return;   // ignore stale / duplicate renders
+  state.applied = r.id;
+  cancelRequest();
+  if (r.error) { notify(t('failedT'), r.error, WARN); return; }
+  state.result = r;
+  renderResult();
+  revealResults();
+});
+
+function wireDrop(id, handler) {
+  const zone = $(id);
+  if (!zone) return;
+  ['dragenter', 'dragover'].forEach((n) => zone.addEventListener(n, (e) => { e.preventDefault(); zone.classList.add('dragover'); }));
+  ['dragleave', 'drop'].forEach((n) => zone.addEventListener(n, (e) => { e.preventDefault(); zone.classList.remove('dragover'); }));
+  zone.addEventListener('drop', (e) => { const f = e.dataTransfer && e.dataTransfer.files[0]; if (f) handler(f); });
+}
+document.addEventListener('DOMContentLoaded', () => {
+  indexDom();
+  applyLang();
+  wireDrop('hero-drop-zone', (f) => takeFile(f, true));
+  wireDrop('drop-zone', (f) => takeFile(f, false));
+});
+window.addEventListener('load', () => {
+  send('streamlit:componentReady', { apiVersion: 1 });
+  resizeFrame();
+  try { window.parent.addEventListener('resize', resizeFrame); } catch (e) { /* ignore */ }
+});
+</script>
+</body>
+</html>
