@@ -128,16 +128,45 @@ def predict(data_uri: str) -> dict:
 
 # --------------------------------------------------------------------------- page
 st.set_page_config(page_title="ULCARE", page_icon="🩺", layout="wide", initial_sidebar_state="collapsed")
+
 st.markdown(
     """<style>
-    #MainMenu,header,footer,[data-testid='stToolbar'],[data-testid='stStatusWidget'],[data-testid='stDecoration']{display:none!important}
-    html,body,[data-testid='stApp'],[data-testid='stAppViewContainer'],[data-testid='stMain'],section.main{overflow:hidden!important;background:#f8fafc}
-    .block-container{padding:0!important;max-width:none!important}
-    [data-testid='stVerticalBlock']{gap:0!important}
-    iframe{display:block;border:0}
+    #MainMenu,header,footer,
+    [data-testid='stToolbar'],
+    [data-testid='stStatusWidget'],
+    [data-testid='stDecoration'] {
+        display: none !important;
+    }
+
+    /* Jangan mengunci scrolling vertikal Streamlit. */
+    html, body,
+    [data-testid='stApp'],
+    [data-testid='stAppViewContainer'],
+    [data-testid='stMain'],
+    section.main {
+        overflow-x: hidden !important;
+        background: #f8fafc;
+    }
+
+    .block-container {
+        padding: 0 !important;
+        max-width: none !important;
+    }
+
+    [data-testid='stVerticalBlock'] {
+        gap: 0 !important;
+    }
+
+    iframe {
+        display: block;
+        width: 100%;
+        max-width: 100%;
+        border: 0;
+    }
     </style>""",
     unsafe_allow_html=True,
 )
+
 
 if not (FRONTEND / "index.html").exists():
     st.error("File `frontend/index.html` tidak ditemukan. Pindahkan `index.html` ke dalam folder `frontend/` di samping `app.py`.")
