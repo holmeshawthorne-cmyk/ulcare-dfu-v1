@@ -1116,11 +1116,16 @@ function handleSupportSubmit(e) {
 
 /* ---------- Streamlit component protocol ---------- */
 function send(type, data) { window.parent.postMessage(Object.assign({ isStreamlitMessage: true, type }, data || {}), '*'); }
-function resizeFrame() {   // fill the visible viewport; the page scrolls INSIDE the frame (no giant frame, no white gap)
-  let h = 0;
-  try { h = Math.round(window.parent.innerHeight); } catch (e) { /* cross-origin parent */ }
-  h = Math.max(520, h || Math.round(screen.availHeight * 0.85));
-  if (h !== state.frameH) { state.frameH = h; send('streamlit:setFrameHeight', { height: h }); }
+function resizeFrame() {
+  const h = Math.max(
+    520,
+    Math.ceil(document.documentElement.scrollHeight)
+  );
+
+  if (h !== state.frameH) {
+    state.frameH = h;
+    send('streamlit:setFrameHeight', { height: h });
+  }
 }
 window.addEventListener('message', (ev) => {
   const d = ev.data;
@@ -1151,7 +1156,16 @@ document.addEventListener('DOMContentLoaded', () => {
 window.addEventListener('load', () => {
   send('streamlit:componentReady', { apiVersion: 1 });
   resizeFrame();
-  try { window.parent.addEventListener('resize', resizeFrame); } catch (e) { /* ignore */ }
+
+  if ('ResizeObserver' in window) {
+    const frameHeightObserver = new ResizeObserver(() => {
+      resizeFrame();
+    });
+
+    frameHeightObserver.observe(document.body);
+  }
+
+  window.addEventListener('resize', resizeFrame);
 });
 </script>
 </body>
